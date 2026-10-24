@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Kernel Call Frontend
 
 Kernel Call is a security investigation dashboard for Android APK analysis. This workspace contains the frontend experience for an evidence-driven Android security and forensic platform.
@@ -151,3 +152,6 @@ Features that still require backend support include:
 - Report generation and download via the backend
 
 The application intentionally does not fabricate any detections, findings, graph edges, or AI answers. Empty states, service-unavailable messages, and placeholders ensure the dashboard remains truthful while the backend is being developed.
+=======
+# kernelcall
+>>>>>>> 8b2aea0efd20c12a6a85b1af1c6ac8d09431b8de
