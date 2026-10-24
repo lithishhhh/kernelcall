@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.KernelCall" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/kernel_background</item>
+        <item name="android:statusBarColor">@color/kernel_background</item>
+        <item name="android:navigationBarColor">@color/kernel_background</item>
+    </style>
+</resources>

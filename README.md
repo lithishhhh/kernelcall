@@ -1,157 +1,141 @@
-<<<<<<< HEAD
-# Kernel Call Frontend
+# Kernel Call
 
-Kernel Call is a security investigation dashboard for Android APK analysis. This workspace contains the frontend experience for an evidence-driven Android security and forensic platform.
+A native Android application for **static APK analysis and security intelligence**.
+Built with Kotlin, Jetpack Compose, and Material 3 — no backend, no cloud services,
+no sign-in.
 
-## Launching the frontend
+> What Phase 1 does: pick an APK file, read its bytes, and compute a SHA-256
+> fingerprint — entirely on the device. Nothing is uploaded, the APK is never
+> installed or executed, and **no verdict** (clean / suspicious / malicious) is
+> claimed. Deep static analysis findings arrive in Phase 2.
 
-From the project root, serve the frontend files with a small static server:
+## Features (Phase 2 — static analysis engine)
 
-```bash
-cd frontend
-python -m http.server 8080
+Phase 2 adds the first real analysis engine on top of the Phase 1 scanner
+(architecture: see `ARCHITECTURE.md`):
+
+- **Static APK analysis** (`static.v2` engine): binary AXML manifest parsing
+  (package, versionCode/versionName, min/target SDK, declared permissions,
+  exported components, debuggable/allowBackup/cleartext flags, boot/SMS intent
+  interceptors), zip inventory (dex count, native ABIs, payload-like assets),
+  v1 signing-certificate read (subject/issuer/validity), dex URL-literal scan.
+- **Honest classification**: every finding is labelled
+  `CONFIRMED OBSERVATION`, `HEURISTIC INDICATOR`, `UNKNOWN`, or `SANDBOX ONLY`.
+  Unverifiable things (v2/v3 signatures, obfuscation, native behavior) are
+  reported openly as unknowns — never fabricated.
+- **Evidence store**: reports persisted per SHA-256 in
+  `filesDir/reports/*.json` (schemaVersion 2); scan history migrated from the
+  Phase 1 format automatically (v1 → v2).
+- **APK cache**: content-addressed `filesDir/apkcache/<sha256>.apk`
+  (≤ 200 MB/file, 600 MB budget, oldest-first eviction), used for re-analysis.
+- **Job lifecycle**: `AnalysisCoordinator` runs engines sequentially with a
+  percent + stage label, per-engine duration stats embedded in each report.
+
+Everything below stays true: nothing is uploaded, nothing is installed or
+executed by the app, and hashing alone never claims to detect malware.
+
+## Features (Phase 1)
+
+- **Dashboard** — brand header, scan action, total-scan stats and recent scans,
+  with a clear empty state for first-time users.
+- **Scan** — APK picker (Storage Access Framework), live fingerprinting progress
+  (bytes read), result showing `filename`, `size`, and full `SHA-256`.
+- **Results** — file identity card plus a reserved section for Phase 2 findings
+  that honestly shows "No findings yet".
+- **History** — every fingerprint recorded locally (SharedPreferences/JSON),
+  with a useful empty state.
+
+## Architecture (deliberately simple)
+
+```
+app/src/main/java/com/kernelcall/app/
+├── MainActivity.kt                  # Compose entry point
+├── analysis/ApkFingerprinter.kt     # SHA-256 streaming on Dispatchers.IO
+├── data/ScanRecord.kt               # Immutable scan record model
+├── data/ScanHistoryStore.kt         # On-device history (StateFlow + JSON)
+└── ui/
+    ├── KernelCallApp.kt             # NavHost + bottom navigation
+    ├── ScanViewModel.kt             # Scan state machine (Idle/Hashing/Done/Error)
+    ├── Formats.kt                   # Size / hash / date formatting
+    ├── theme/                       # Dark "security console" theme
+    ├── components/                  # PanelCard, EmptyState, InfoRow...
+    └── screens/                     # Dashboard, Scan, History, Results
 ```
 
-Then open:
+Key engineering points:
+- Hashing runs on a **coroutine on `Dispatchers.IO`** — the UI never freezes.
+- All file access is wrapped in graceful **error handling** with retry UI.
+- **Privacy**: the app requests no storage permissions (SAF handles access),
+  uploads nothing, installs nothing, and executes nothing.
+- **Honesty**: hashing identifies a file; the app never suggests it detects
+  malware by itself, and never fabricates analysis findings.
 
-```text
-http://127.0.0.1:8080/
+## Requirements
+
+- Android Studio (any recent version) *or* just the Android SDK + a JDK
+- JDK 17+ (verified with Oracle JDK 21)
+- Android SDK: platform `android-35`, build-tools `35.0.0`
+
+## Building
+
+The repo includes a full Gradle wrapper. There is no need for a system Gradle.
+
+```bat
+:: from the project root
+gradlew.bat assembleDebug         :: build the debug APK
+gradlew.bat testDebugUnitTest     :: JVM unit tests (AXML parser, zip inventory, engine)
 ```
 
-The frontend expects a local FastAPI backend to run on:
+The first run downloads Gradle 8.10.2 and dependencies automatically.
 
-```text
-http://127.0.0.1:8000
+The debug APK is produced at `app/build/outputs/apk/debug/app-debug.apk`.
+
+### Install on a device
+
+```bat
+adb install -r app\build\outputs\apk\debug\app-debug.apk
 ```
 
-If the backend runs on another host or port, update the `API_BASE_URL` constant in `frontend/app.js` before opening the app.
+(Enable USB debugging on the phone first; or simply open the project in
+Android Studio and press Run.)
 
-## API contract used by the frontend
+### Manual end-to-end smoke test (SAF flow)
 
-The frontend uses the following route families, with graceful fallback handling when specific endpoints are missing or not yet implemented:
+1. Launch Kernel Call on the device.
+2. Scan tab → *Select APK file* → pick any `.apk` (e.g. one shared via a file
+   manager or your own `app-debug.apk` copied into Downloads).
+3. Confirm filename + size + SHA-256 appear, *Run static analysis* completes
+   with a percent/stage label.
+4. Open *View results*: findings are labelled by kind/severity with evidence,
+   unknowns are listed openly.
 
-- `GET /api/scans` — list scan history
-- `POST /api/scans` — upload an APK and start analysis
-- `GET /api/scans/{scan_id}` — retrieve a single scan record
-- `GET /api/scans/{scan_id}/findings` — fetch finding records for a scan
-- `GET /api/scans/{scan_id}/evidence` — fetch evidence metadata for a scan
-- `POST /api/compare` — compare two APK results
-- `GET /api/relationships` or `GET /api/correlation` — retrieve relationship graph data
-- `POST /api/ask` or `POST /api/copilot/ask` — ask the forensic copilot a question
-- `GET /api/reports/{scan_id}` — retrieve or generate a report
+## Project versions
 
-The frontend checks the HTTP status and handles non-JSON responses safely. It does not assume every backend returns the same field names. Where the backend omits fields, the UI shows an empty or unavailable state rather than inventing values.
+| Component   | Version  |
+|-------------|----------|
+| Gradle      | 8.10.2   |
+| AGP         | 8.7.3    |
+| Kotlin      | 2.0.21   |
+| Compose BOM | 2024.12.01 |
+| min/target  | 26 / 35  |
 
-## Supported request and response patterns
+## Architecture
 
-### Upload
+`ARCHITECTURE.md` documents the long-term platform plan (engine boundaries,
+finding/evidence model, job lifecycle, storage & migrations, on-device vs
+sandbox separation, Android platform limits, testing strategy).
 
-```http
-POST /api/scans
-Content-Type: multipart/form-data
-```
+## Phase 2 (future engines, not present)
 
-Expected response patterns include:
+Device monitoring engine, isolated sandbox dynamic analysis, threat-intel
+enrichment with explainable risk scoring. No placeholder engines exist in the
+codebase — engines are added only when they can produce real, evidence-based
+output.
 
-```json
-{"id": "scan-123", "status": "queued"}
-```
+## Security house rules
 
-or
-
-```json
-{"scan_id": "scan-123", "scan_status": "processing"}
-```
-
-The frontend extracts the scan identifier if present and polls status if the API provides a terminal or processing state.
-
-### Scans
-
-```json
-[
-  {
-    "id": "scan-123",
-    "file_name": "sample.apk",
-    "package_name": "com.example.app",
-    "sha256": "...",
-    "status": "completed",
-    "timestamp": "2026-10-21T10:25:00Z"
-  }
-]
-```
-
-### Findings
-
-```json
-[
-  {
-    "id": "evidence-1",
-    "title": "Suspicious network behavior",
-    "severity": "high",
-    "confidence": 0.91,
-    "observation": "App attempts to contact a remote service without a clearly documented purpose.",
-    "rule_id": "ANDR-204"
-  }
-]
-```
-
-### Comparison
-
-The frontend sends a conservative comparison payload:
-
-```json
-{
-  "first_scan_id": "scan-abc",
-  "second_scan_id": "scan-def"
-}
-```
-
-The backend may respond with any of the following common shapes:
-
-- `application_overview`
-- `permissions`
-- `components`
-- `indicators`
-- `findings`
-- `interpretation`
-
-### Copilot
-
-```json
-{
-  "question": "Why did this finding trigger?",
-  "scan_id": "scan-abc",
-  "context": { "scan_id": "scan-abc" }
-}
-```
-
-Expected result patterns include:
-
-```json
-{
-  "answer": "The finding was triggered because...",
-  "references": ["EVID-001"]
-}
-```
-
-## CORS and backend coordination
-
-When the frontend is served from a different origin than the FastAPI backend, the backend must enable CORS for the frontend origin (for example `http://127.0.0.1:8080`). The frontend is intentionally defensive and will continue to function without backend data by showing explicit unavailable states.
-
-## Status of implementation
-
-This frontend includes the full user interface shell, upload flow, scan history, scan details, findings view, comparison workflow, relationship graph, copilot interface, and report handling. It is designed to work with a genuine FastAPI backend when available and to fail gracefully when endpoints are not yet implemented.
-
-Features that still require backend support include:
-
-- Real APK upload validation beyond client-side checks
-- Actual scan processing and status progression
-- Real findings generation and evidence extraction
-- Relationship graph data from the intelligence layer
-- AI answer generation from the Copilot API
-- Report generation and download via the backend
-
-The application intentionally does not fabricate any detections, findings, graph edges, or AI answers. Empty states, service-unavailable messages, and placeholders ensure the dashboard remains truthful while the backend is being developed.
-=======
-# kernelcall
->>>>>>> 8b2aea0efd20c12a6a85b1af1c6ac8d09431b8de
+- The app never installs, instantiates, or executes a picked APK.
+- No INTERNET permission; scan content never leaves the device.
+- Dynamic analysis can only exist in a disposable isolated environment and
+  must always emit `SANDBOX_ONLY` findings — never mixed into on-device
+  verdicts.
