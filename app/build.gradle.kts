@@ -54,4 +54,7 @@ dependencies {
     implementation(libs.androidx.material3)
     debugImplementation(libs.androidx.ui.tooling)
     testImplementation(libs.junit)
+    // Real org.json on the JVM for report (de)serialization tests; the Android
+    // artifact is stubbed out in unit-test tooling (Phase 2 constraint).
+    testImplementation("org.json:json:20240303")
 }

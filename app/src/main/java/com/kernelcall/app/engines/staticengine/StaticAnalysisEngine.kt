@@ -36,13 +36,17 @@ class StaticAnalysisEngine : AnalysisEngine {
             severity: Severity,
             evidence: List<Evidence>,
             recommendation: String? = null,
+            ruleId: String,
+            category: String = com.kernelcall.app.core.model.Categories.MANIFEST,
+            confidence: com.kernelcall.app.core.model.Confidence =
+                com.kernelcall.app.core.model.Confidence.HIGH,
         ) {
             val slug = title.lowercase().replace(
                 Regex("[^a-z0-9]+"), "-"
             ).trim('-')
             findings.add(
                 Finding(
-                    id = "$id:$slug:${evidence.size}",
+                    id = "$id:$ruleId:$slug:${evidence.size}",
                     engineId = id,
                     title = title,
                     summary = summary,
@@ -51,6 +55,9 @@ class StaticAnalysisEngine : AnalysisEngine {
                     evidence = evidence,
                     recommendation = recommendation,
                     detectedAt = detectedAt,
+                    category = category,
+                    ruleId = ruleId,
+                    confidence = confidence,
                 )
             )
         }
@@ -134,6 +141,7 @@ class StaticAnalysisEngine : AnalysisEngine {
                         evidence = listOf(
                             Evidence("manifest", "uses-permission", permission, "AndroidManifest.xml")
                         ),
+                        ruleId = "static.manifest.permission",
                     )
                 }
 
@@ -151,6 +159,8 @@ class StaticAnalysisEngine : AnalysisEngine {
                         },
                         recommendation = "Confirm each exported component is intended to " +
                             "be reachable externally.",
+                        ruleId = "static.manifest.exported",
+                        confidence = com.kernelcall.app.core.model.Confidence.MEDIUM,
                     )
                 }
                 val unspecified = manifest.components.filter { it.exported == null }
@@ -165,6 +175,7 @@ class StaticAnalysisEngine : AnalysisEngine {
                         evidence = unspecified.take(10).map {
                             Evidence("manifest", "no android:exported attribute", "${it.type}:${it.name}")
                         },
+                        ruleId = "static.manifest.exported-unspecified",
                     )
                 }
 
@@ -181,6 +192,7 @@ class StaticAnalysisEngine : AnalysisEngine {
                         ),
                         recommendation = "Verify this is a debug build; publish builds " +
                             "must not be debuggable.",
+                        ruleId = "static.manifest.debuggable",
                     )
                 }
 
@@ -194,6 +206,7 @@ class StaticAnalysisEngine : AnalysisEngine {
                         evidence = listOf(
                             Evidence("manifest", "android:allowBackup", "true", "application")
                         ),
+                        ruleId = "static.manifest.allowbackup",
                     )
                 }
 
@@ -213,6 +226,7 @@ class StaticAnalysisEngine : AnalysisEngine {
                             )
                         ),
                         recommendation = "Restrict to HTTPS and add a network security config.",
+                        ruleId = "static.manifest.cleartext",
                     )
                 }
 
@@ -233,6 +247,7 @@ class StaticAnalysisEngine : AnalysisEngine {
                                 "BOOT_COMPLETED -> ${it.type}:${it.name}"
                             )
                         },
+                        ruleId = "static.intent.boot",
                     )
                 }
 
@@ -261,6 +276,8 @@ class StaticAnalysisEngine : AnalysisEngine {
                         },
                         recommendation = "Verify the declared use case matches the app's " +
                             "actual behavior before any further judgement.",
+                        ruleId = "static.intent.telephony",
+                        confidence = com.kernelcall.app.core.model.Confidence.MEDIUM,
                     )
                 }
             }
@@ -277,6 +294,8 @@ class StaticAnalysisEngine : AnalysisEngine {
                     evidence = archive.nativeSharedObjects.take(8).map {
                         Evidence("zip", "payload", it, "APK entries")
                     },
+                    ruleId = "static.archive.native",
+                    category = com.kernelcall.app.core.model.Categories.ARCHIVE,
                 )
             }
 
@@ -294,6 +313,9 @@ class StaticAnalysisEngine : AnalysisEngine {
                         Evidence("zip", "payload", it, "APK entries")
                     },
                     recommendation = "Sandbox review recommended for code-loading logic.",
+                    ruleId = "static.archive.payload",
+                    category = com.kernelcall.app.core.model.Categories.ARCHIVE,
+                    confidence = com.kernelcall.app.core.model.Confidence.LOW,
                 )
             }
 
@@ -314,6 +336,9 @@ class StaticAnalysisEngine : AnalysisEngine {
                         dexObservation.hosts.joinToString(", ").take(400)
                     ),
                     recommendation = "Network behavior checks belong in sandbox analysis.",
+                    ruleId = "static.dex.urls",
+                    category = com.kernelcall.app.core.model.Categories.CODE,
+                    confidence = com.kernelcall.app.core.model.Confidence.MEDIUM,
                 )
             }
 
@@ -342,6 +367,8 @@ class StaticAnalysisEngine : AnalysisEngine {
                         Evidence("cert", "self-signed", cert.selfSigned.toString()),
                         Evidence("zip", "signature block", archive.v1SignatureFiles.first()),
                     ),
+                    ruleId = "static.cert.identity",
+                    category = com.kernelcall.app.core.model.Categories.CERTIFICATE,
                 )
             } else if (archive.v1SignatureFiles.isEmpty()) {
                 finding(
@@ -355,6 +382,8 @@ class StaticAnalysisEngine : AnalysisEngine {
                     evidence = listOf(
                         Evidence("zip", "META-INF signature files", "none found")
                     ),
+                    ruleId = "static.cert.v1missing",
+                    category = com.kernelcall.app.core.model.Categories.CERTIFICATE,
                 )
             }
 

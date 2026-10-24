@@ -81,6 +81,10 @@ class AnalysisCoordinator {
 
         onProgress(100, "Analysis complete")
 
+        val correlations = com.kernelcall.app.core.intelligence.Correlator.correlate(allFindings)
+        val risk = com.kernelcall.app.core.intelligence.RiskScorer.assess(allFindings, correlations, allUnknowns)
+        val intelligence = com.kernelcall.app.core.model.Intelligence(correlations, risk)
+
         return AnalysisReport(
             schemaVersion = AnalysisReport.CURRENT_SCHEMA_VERSION,
             sha256 = sha256,
@@ -90,6 +94,7 @@ class AnalysisCoordinator {
             engines = stats,
             findings = sortFindings(allFindings),
             unknowns = allUnknowns,
+            intelligence = intelligence,
         )
     }
 

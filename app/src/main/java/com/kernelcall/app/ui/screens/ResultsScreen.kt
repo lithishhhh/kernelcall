@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import com.kernelcall.app.core.model.AnalysisReport
 import com.kernelcall.app.core.model.Finding
 import com.kernelcall.app.core.model.FindingKind
+import com.kernelcall.app.core.model.RiskBand
 import com.kernelcall.app.core.model.Severity
 import com.kernelcall.app.data.ScanHistoryStore
 import com.kernelcall.app.data.ScanRecord
@@ -124,6 +125,11 @@ fun ResultsScreen(
 
         Spacer(Modifier.height(16.dp))
 
+        // Intelligence — explainable score, correlations, open gaps
+        IntelligenceCard(report)
+
+        Spacer(Modifier.height(16.dp))
+
         // Findings
         SectionLabel("Findings (${report.findings.size})")
         Spacer(Modifier.height(10.dp))
@@ -182,6 +188,157 @@ fun ResultsScreen(
 }
 
 @Composable
+private fun IntelligenceCard(report: AnalysisReport) {
+    SectionLabel("Intelligence")
+    Spacer(Modifier.height(10.dp))
+
+    val intel = report.intelligence
+    PanelCard(modifier = Modifier.fillMaxWidth()) {
+        if (intel == null) {
+            Text(
+                text = "This report predates the intelligence layer (schema " +
+                    report.schemaVersion + "). Nothing is invented here — re-run " +
+                    "static analysis on this file to obtain correlation and a " +
+                    "risk-surface score.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            return@PanelCard
+        }
+
+        // Risk band header
+        val bandColor = bandColor(intel.risk.band)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = "Risk-surface score",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "${intel.risk.score} / 100 · RISK: ${intel.risk.band.name}",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = bandColor,
+                )
+            }
+        }
+        Text(
+            text = "An indicator of code-level risk surface (static evidence only) — " +
+                "never a verdict that this APK is malware.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        Spacer(Modifier.height(10.dp))
+        SeverityDistribution(report.findings)
+
+        // Why the score is what it is
+        if (intel.risk.contributions.isNotEmpty()) {
+            Spacer(Modifier.height(10.dp))
+            SectionLabel("Score explanation")
+            Column {
+                intel.risk.contributions.forEach { contribution ->
+                    Row(modifier = Modifier.padding(vertical = 2.dp)) {
+                        Text(
+                            text = "+${contribution.weight}",
+                            style = HashStyle,
+                            color = bandColor,
+                            modifier = Modifier.width(44.dp),
+                        )
+                        Text(
+                            text = contribution.description,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                }
+            }
+        }
+
+        // Correlations
+        if (intel.correlations.isNotEmpty()) {
+            Spacer(Modifier.height(10.dp))
+            SectionLabel("Correlated indicators (${intel.correlations.size})")
+            Column {
+                intel.correlations.forEach { correlation ->
+                    Row(modifier = Modifier.padding(top = 6.dp)) {
+                        Text(
+                            text = "●",
+                            color = severityColor(correlation.severity)
+                                ?: MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(end = 6.dp),
+                        )
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                text = correlation.title,
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            Text(
+                                text = correlation.explanation,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                text = "Based on ${correlation.relatedFindingIds.size} finding(s)" +
+                                    (if (correlation.scoreWeight > 0)
+                                        " · +" + correlation.scoreWeight + " score"
+                                    else " · consolidation only"),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.secondary,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Honest limitations
+        Spacer(Modifier.height(10.dp))
+        SectionLabel("What this score cannot tell you")
+        Column {
+            intel.risk.limitations.forEach { limitation ->
+                Row {
+                    Text(text = "· ", color = KernelCyan)
+                    Text(
+                        text = limitation,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SeverityDistribution(findings: List<Finding>) {
+    SectionLabel("Severity distribution")
+    Row(Modifier.fillMaxWidth()) {
+        Severity.entries.forEach { severity ->
+            val count = findings.count { it.severity == severity }
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("● ", color = severityColor(severity) ?: KernelGreen)
+                Text(
+                    text = "$count ${severity.name.lowercase()}",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+private fun bandColor(band: RiskBand) = when (band) {
+    RiskBand.HIGH -> KernelRed
+    RiskBand.ELEVATED -> KernelAmber
+    RiskBand.MODERATE -> com.kernelcall.app.ui.theme.KernelTextSecondary
+    RiskBand.LOW -> KernelGreen
+}
+
+@Composable
 private fun FindingRows(finding: Finding) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         severityColor(finding.severity)?.let { color ->
@@ -197,7 +354,9 @@ private fun FindingRows(finding: Finding) {
                 style = MaterialTheme.typography.titleMedium,
             )
             Text(
-                text = kindLabel(finding.kind) + " · " + severityLabel(finding.severity),
+                text = kindLabel(finding.kind) + " · " + severityLabel(finding.severity) +
+                    " · confidence: " + finding.confidence.name.lowercase() +
+                    (if (finding.ruleId.isNotBlank()) " · rule " + finding.ruleId else ""),
                 style = MaterialTheme.typography.labelLarge,
                 color = kindColor(finding.kind),
             )

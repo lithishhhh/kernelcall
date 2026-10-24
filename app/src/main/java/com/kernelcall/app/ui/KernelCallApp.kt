@@ -92,6 +92,7 @@ fun KernelCallApp(scanViewModel: ScanViewModel = viewModel()) {
             composable(Routes.DASHBOARD) {
                 DashboardScreen(
                     records = scanViewModel.historyStore.records.collectAsState().value,
+                    loadReport = scanViewModel::loadReportFor,
                     onScanSelected = { navController.navigate(Routes.SCAN) },
                     onRecordSelected = { id -> navController.navigate(Routes.results(id)) },
                 )
