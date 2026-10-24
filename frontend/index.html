@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Kernel Call is an Android security and forensic analysis platform for investigating APK artifacts and evidence."
+    />
+    <title>Kernel Call</title>
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Sidebar navigation">
+        <div class="brand-block">
+          <div class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 64 64" role="img" aria-label="Kernel Call emblem">
+              <path d="M32 6 14 14v14c0 12 7 23 18 30 11-7 18-18 18-30V14L32 6Zm0 9 11 5v12c0 9-5 17-11 22-6-5-11-13-11-22V20l11-5Z" />
+              <path d="M32 18.5 38 21v9.5c0 6.5-3.8 12.7-6 14.5-2.2-1.8-6-8-6-14.5V21l6-2.5Z" />
+            </svg>
+          </div>
+          <div>
+            <h1>Kernel Call</h1>
+            <p>Android Security &amp; Forensic Analysis Platform</p>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav" aria-label="Primary navigation">
+          <button class="nav-item active" data-view="dashboard-view" type="button">
+            <span>Dashboard</span>
+          </button>
+          <button class="nav-item" data-view="upload-view" type="button">
+            <span>Upload APK</span>
+          </button>
+          <button class="nav-item" data-view="history-view" type="button">
+            <span>Scan History</span>
+          </button>
+          <button class="nav-item" data-view="comparison-view" type="button">
+            <span>APK Comparison</span>
+          </button>
+          <button class="nav-item" data-view="relationship-view" type="button">
+            <span>Relationship Graph</span>
+          </button>
+          <button class="nav-item" data-view="findings-view" type="button">
+            <span>Findings &amp; Evidence</span>
+          </button>
+          <button class="nav-item" data-view="copilot-view" type="button">
+            <span>AI Forensic Copilot</span>
+          </button>
+          <button class="nav-item" data-view="reports-view" type="button">
+            <span>Reports</span>
+          </button>
+        </nav>
+      </aside>
+
+      <main class="main-panel">
+        <header class="topbar">
+          <div class="header-search">
+            <label class="sr-only" for="global-search">Search</label>
+            <input id="global-search" type="search" placeholder="Search scans, packages, hashes..." />
+          </div>
+          <div class="header-actions" aria-label="Header actions">
+            <button class="icon-button" type="button" aria-label="Notifications">
+              <span>🔔</span>
+            </button>
+            <div class="investigator-menu">
+              <span class="investigator-dot" aria-hidden="true"></span>
+              <span>Investigator</span>
+            </div>
+          </div>
+        </header>
+
+        <div class="page-content">
+          <section id="dashboard-view" class="view-panel active" aria-label="Dashboard">
+            <div class="welcome-card card">
+              <div>
+                <p class="eyebrow">Investigation workspace</p>
+                <h2>Welcome to Kernel Call</h2>
+                <p class="subtitle">Analyse Android applications. Investigate suspicious behaviour. Follow the evidence.</p>
+              </div>
+              <div class="welcome-actions">
+                <button class="btn btn-primary" data-view="upload-view" type="button">Upload APK</button>
+                <button class="btn btn-secondary" data-view="history-view" type="button">View Scan History</button>
+              </div>
+            </div>
+
+            <div id="dashboard-stats" class="stats-grid"></div>
+
+            <div class="dashboard-grid">
+              <div class="card">
+                <div class="card-header">
+                  <h3>Recent scans</h3>
+                </div>
+                <div id="recent-scans-container"></div>
+              </div>
+
+              <div class="card">
+                <div class="card-header">
+                  <h3>Recent findings</h3>
+                </div>
+                <div id="recent-findings-container"></div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <h3>Scan activity</h3>
+              </div>
+              <div id="activity-chart" class="activity-chart"></div>
+            </div>
+          </section>
+
+          <section id="upload-view" class="view-panel" aria-label="Upload APK">
+            <div class="section-header">
+              <div>
+                <p class="eyebrow">Intake</p>
+                <h2>Upload APK</h2>
+              </div>
+            </div>
+
+            <div class="card upload-card">
+              <div id="upload-dropzone" class="upload-dropzone" tabindex="0" role="button" aria-label="Upload APK file">
+                <input id="apk-file-input" type="file" accept=".apk,application/vnd.android.package-archive" hidden />
+                <div class="upload-icon" aria-hidden="true">⬆</div>
+                <div>
+                  <h3>Drop APK here</h3>
+                  <p>or click to choose a file from your device</p>
+                </div>
+              </div>
+
+              <div class="upload-details">
+                <div class="file-meta-row">
+                  <span class="label">Selected file</span>
+                  <span id="selected-file-name" class="muted-text">No file selected</span>
+                </div>
+                <div class="file-meta-row">
+                  <span class="label">File size</span>
+                  <span id="selected-file-size" class="muted-text">0 B</span>
+                </div>
+                <div id="upload-validation" class="validation-message" aria-live="polite"></div>
+              </div>
+
+              <div class="upload-actions">
+                <button id="upload-submit" class="btn btn-primary" type="button">Upload and scan</button>
+                <button id="upload-reset" class="btn btn-secondary" type="button">Clear</button>
+              </div>
+
+              <div id="upload-progress" class="progress-panel hidden" aria-live="polite">
+                <div class="progress-header">
+                  <span>Analysis in progress</span>
+                  <span id="upload-progress-text">0%</span>
+                </div>
+                <div class="progress-bar"><span id="upload-progress-fill"></span></div>
+              </div>
+
+              <div id="upload-status" class="status-panel" aria-live="polite"></div>
+            </div>
+          </section>
+
+          <section id="history-view" class="view-panel" aria-label="Scan history">
+            <div class="section-header">
+              <div>
+                <p class="eyebrow">Evidence timeline</p>
+                <h2>Scan history</h2>
+              </div>
+            </div>
+
+            <div class="card control-panel history-controls">
+              <div class="filter-group">
+                <label>
+                  <span>Search</span>
+                  <input id="history-search" type="search" placeholder="Filename, package, hash" />
+                </label>
+              </div>
+              <div class="filter-group">
+                <label>
+                  <span>Status</span>
+                  <select id="history-status-filter">
+                    <option value="all">All statuses</option>
+                    <option value="completed">Completed</option>
+                    <option value="in_progress">In progress</option>
+                    <option value="failed">Failed</option>
+                    <option value="queued">Queued</option>
+                  </select>
+                </label>
+              </div>
+              <div class="filter-group">
+                <label>
+                  <span>Date</span>
+                  <select id="history-date-filter">
+                    <option value="all">All time</option>
+                    <option value="7">Last 7 days</option>
+                    <option value="30">Last 30 days</option>
+                    <option value="90">Last 90 days</option>
+                  </select>
+                </label>
+              </div>
+              <div class="button-stack">
+                <button id="history-reset" class="btn btn-secondary" type="button">Reset filters</button>
+              </div>
+            </div>
+
+            <div class="card">
+              <div id="history-table-container"></div>
+            </div>
+          </section>
+
+          <section id="scan-details-view" class="view-panel" aria-label="Scan details">
+            <div class="section-header">
+              <div>
+                <p class="eyebrow">APK X-Ray</p>
+                <h2 id="scan-detail-title">Scan details</h2>
+              </div>
+              <button id="scan-details-back" class="btn btn-secondary" type="button">Back to history</button>
+            </div>
+
+            <div id="scan-details-container" class="details-stack"></div>
+          </section>
+
+          <section id="findings-view" class="view-panel" aria-label="Findings and evidence">
+            <div class="section-header">
+              <div>
+                <p class="eyebrow">Evidence portfolio</p>
+                <h2>Findings &amp; Evidence</h2>
+              </div>
+            </div>
+            <div id="findings-container" class="findings-layout"></div>
+          </section>
+
+          <section id="comparison-view" class="view-panel" aria-label="APK comparison">
+            <div class="section-header">
+              <div>
+                <p class="eyebrow">Comparative analysis</p>
+                <h2>APK Comparison</h2>
+              </div>
+            </div>
+
+            <div class="card comparison-card">
+              <div class="comparison-controls">
+                <label>
+                  <span>First APK</span>
+                  <select id="compare-first-scan"></select>
+                </label>
+                <label>
+                  <span>Second APK</span>
+                  <select id="compare-second-scan"></select>
+                </label>
+                <button id="compare-submit" class="btn btn-primary" type="button">Compare</button>
+              </div>
+            </div>
+
+            <div id="comparison-output" class="comparison-output"></div>
+          </section>
+
+          <section id="relationship-view" class="view-panel" aria-label="Relationship graph">
+            <div class="section-header">
+              <div>
+                <p class="eyebrow">Correlation</p>
+                <h2>Relationship Graph</h2>
+              </div>
+            </div>
+            <div id="relationship-container" class="card relationship-card"></div>
+          </section>
+
+          <section id="copilot-view" class="view-panel" aria-label="AI forensic copilot">
+            <div class="section-header">
+              <div>
+                <p class="eyebrow">Analyst support</p>
+                <h2>AI Forensic Copilot</h2>
+              </div>
+            </div>
+
+            <div class="card copilot-shell">
+              <div class="copilot-context">
+                <label>
+                  <span>Investigation context</span>
+                  <select id="copilot-scan-select">
+                    <option value="">No scan selected</option>
+                  </select>
+                </label>
+              </div>
+
+              <div id="copilot-messages" class="copilot-messages" aria-live="polite"></div>
+
+              <div class="copilot-suggestions">
+                <button class="suggestion-chip" type="button">Why did this finding trigger?</button>
+                <button class="suggestion-chip" type="button">What evidence supports this assessment?</button>
+                <button class="suggestion-chip" type="button">Which indicators are shared between these applications?</button>
+                <button class="suggestion-chip" type="button">What should I investigate next?</button>
+              </div>
+
+              <form id="copilot-form" class="copilot-form">
+                <textarea id="copilot-input" rows="3" placeholder="Ask about the selected APK, indicators, or investigation path..."></textarea>
+                <div class="copilot-form-actions">
+                  <button type="button" id="copilot-clear" class="btn btn-secondary">Start new conversation</button>
+                  <button type="submit" class="btn btn-primary">Send</button>
+                </div>
+              </form>
+            </div>
+          </section>
+
+          <section id="reports-view" class="view-panel" aria-label="Reports">
+            <div class="section-header">
+              <div>
+                <p class="eyebrow">Reporting</p>
+                <h2>Reports</h2>
+              </div>
+            </div>
+
+            <div class="card report-card">
+              <label>
+                <span>Select a scan</span>
+                <select id="report-scan-select">
+                  <option value="">Choose a scan</option>
+                </select>
+              </label>
+              <div id="report-output" class="report-output"></div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <div id="toast-region" class="toast-region" aria-live="assertive"></div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

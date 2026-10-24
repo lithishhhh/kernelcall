@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Kernel Call favicon">
+  <defs>
+    <linearGradient id="fbg" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#2878FF"/>
+      <stop offset="100%" stop-color="#35D7F2"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="12" fill="#0B1425"/>
+  <path d="M32 8 17 15v14c0 12 7 22 15 27 8-5 15-15 15-27V15L32 8zm0 9 9 4v10c0 8-5 15-9 18-4-3-9-10-9-18V21l9-4z" fill="url(#fbg)"/>
+  <path d="M32 18 38 21v9c0 6-3.4 11.5-6 13.5-2.6-2-6-7.5-6-13.5v-9l6-3z" fill="#EAF1FF"/>
+</svg>

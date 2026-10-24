@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" role="img" aria-label="Kernel Call logo">
+  <defs>
+    <linearGradient id="kbg" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#2878FF"/>
+      <stop offset="100%" stop-color="#35D7F2"/>
+    </linearGradient>
+  </defs>
+  <rect width="180" height="180" rx="32" fill="#0B1425"/>
+  <path d="M90 22 52 38v34c0 26 16 48 38 62 22-14 38-36 38-62V38L90 22zm0 19 22 10v24c0 18-11 32-22 40-11-8-22-22-22-40V51l22-10z" fill="url(#kbg)"/>
+  <path d="M90 58 109 66v21c0 14-8 25-19 31-11-6-19-17-19-31V66l19-8z" fill="#EAF1FF" opacity="0.92"/>
+</svg>
