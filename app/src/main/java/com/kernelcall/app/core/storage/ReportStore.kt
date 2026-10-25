@@ -3,6 +3,9 @@ package com.kernelcall.app.core.storage
 import android.content.Context
 import com.kernelcall.app.core.model.AnalysisReport
 import java.io.File
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Persists AnalysisReport JSON per sha256 under filesDir/reports.
@@ -14,11 +17,17 @@ class ReportStore(context: Context) {
         if (!exists()) mkdirs()
     }
 
+    /** Bumped on every successful save; observers recompute aggregates. */
+    private val _savedVersion = MutableStateFlow(0)
+    val savedVersion: StateFlow<Int> = _savedVersion.asStateFlow()
+
     fun save(report: AnalysisReport): Boolean = try {
         val target = File(dir, "${report.sha256}.json")
         val temp = File("$target.part")
         temp.writeText(report.toJson(), Charsets.UTF_8)
-        temp.renameTo(target)
+        val ok = temp.renameTo(target)
+        if (ok) _savedVersion.value = _savedVersion.value + 1
+        ok
     } catch (_: Exception) {
         false
     }

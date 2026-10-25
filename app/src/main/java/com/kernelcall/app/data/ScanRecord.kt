@@ -12,4 +12,10 @@ data class ScanRecord(
     val sha256: String,
     val scannedAt: Long,
     val cacheStored: Boolean = false,
+    /**
+     * Phase 5 additive optional field: set when the scan came from the
+     * installed-app scanner. Old payloads and callers parse/construct with
+     * the null default.
+     */
+    val packageName: String? = null,
 )

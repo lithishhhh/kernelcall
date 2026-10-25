@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
 import java.io.File
+import java.io.InputStream
 
 /**
  * Stores the picked APK's bytes under filesDir/apkcache/<sha256>.apk so later
@@ -29,9 +30,41 @@ class ApkCacheStore(context: Context) {
         if (target.exists() && target.length() == declaredSize) return target
 
         return try {
+            val stream = resolver.openInputStream(uri) ?: return null
+            copyStreamInto(target, stream, declaredSize)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /**
+     * Phase 5: imports an installed app's accessible base APK bytes from a
+     * local file path into the cache (never installed or executed).
+     */
+    fun import(source: File, sha256: String, declaredSize: Long): File? {
+        if (declaredSize > MAX_FILE_SIZE) return null
+        if (declaredSize < 0) return null // unknown size: not cacheable
+        val target = fileFor(sha256)
+        if (target.exists() && target.length() == declaredSize) return target
+
+        return try {
+            val stream = try {
+                source.inputStream()
+            } catch (_: Exception) {
+                return null
+            }
+            copyStreamInto(target, stream, declaredSize)
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /** Shared copy/budget/evict core for both entry points. */
+    private fun copyStreamInto(target: File, stream: InputStream, declaredSize: Long): File? {
+        return try {
             val temp = File(target.absolutePath + ".part")
             var copied = 0L
-            resolver.openInputStream(uri)?.use { input ->
+            stream.use { input ->
                 temp.outputStream().use { out ->
                     val buffer = ByteArray(512 * 1024)
                     while (true) {
@@ -47,15 +80,15 @@ class ApkCacheStore(context: Context) {
                         }
                     }
                 }
-            } ?: return null
-            if (declaredSize < 0) return null // unknown size: not cacheable
+            }
+            if (declaredSize < 0) {
+                temp.delete(); return null // unknown size: not cacheable
+            }
             if (copied == 0L) {
-                temp.delete()
-                return null
+                temp.delete(); return null
             }
             if (!temp.renameTo(target)) {
-                temp.delete()
-                return null
+                temp.delete(); return null
             }
             evictOld(keepExisting = target)
             target

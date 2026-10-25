@@ -1,6 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!--
+      Phase 5 installed-app discovery, narrowest workable visibility:
+      this intent filter makes launcher-visible apps discoverable to
+      PackageManager without granting QUERY_ALL_PACKAGES. Implications
+      (intentional, stated in the UI too):
+        * only apps with a launchable activity appear in the Installed Apps list
+        * system components without a launcher intent are excluded — noted
+          honestly as invisible, never counted
+        * no dangerous permissions are requested; reading another app's APK
+          bytes uses the platform's world-readable APK path only
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"

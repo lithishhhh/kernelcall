@@ -83,10 +83,48 @@ Phase 2 adds the first real analysis engine on top of the Phase 1 scanner
 Everything below stays true: nothing is uploaded, nothing is installed or
 executed by the app, and hashing alone never claims to detect malware.
 
+## Features (Phase 5 — visual security dashboard & installed-app scanner)
+
+- **Installed-app scanner**: the app lists the launchable packages Android
+  exposes to it (via a `<queries>` intent filter for `ACTION_MAIN` /
+  `CATEGORY_LAUNCHER` — deliberately **no `QUERY_ALL_PACKAGES`**, so the
+  list is exactly what the platform's package-visibility rules allow and
+  nothing more). Search by app label or package name, optional
+  "include system apps" toggle, per-app icons rendered locally in memory.
+- **Honest eligibility**: an app is analysable only when the platform
+  exposes an accessible base APK path; the app's own package is excluded.
+  Non-listed apps remain reachable through the existing manual SAF import.
+- **Scan queue**: multiple apps are fingerprinted and statically analysed
+  one at a time (dedupe of already-queued/running packages, "cancel
+  pending", per-item states QUEUED / RUNNING / DONE / UNREADABLE / ERROR
+  with the real reason). Every percent/stage shown comes from actual
+  events — byte counts from the fingerprinter and stage labels from the
+  analysis coordinator — nothing is simulated.
+- **Visual dashboard**: native Compose `Canvas` charts (no new
+  dependencies) — a 270° **risk gauge** for the latest analysed app, the
+  **severity distribution** across all persisted reports, and
+  **findings-by-category** bars; summary cards (scanned / analysed /
+  findings / high-severity) are aggregated by pure, unit-tested helpers
+  from real persisted data only. When nothing has been analysed, the
+  gauge shows an honest "no score" state instead of a fabricated number.
+- **Results enrichment**: the intelligence card now shows the risk gauge
+  and a per-report category chart.
+- **History enrichment**: records created by the installed-app scanner
+  carry the package name (additive, tolerated by the schema-v2 history
+  format — old payloads parse unchanged).
+- All prior guarantees hold: analysis never installs, executes, or
+  uploads anything; no INTERNET permission; indicator-based output, never
+  a verdict.
+
+Everything below stays true: nothing is uploaded, nothing is installed or
+executed by the app, and hashing alone never claims to detect malware.
+
 ## Features (Phase 1)
 
-- **Dashboard** — brand header, scan action, total-scan stats and recent scans,
-  with a clear empty state for first-time users.
+- **Dashboard** — brand header, "Scan installed apps" action (Phase 5),
+  manual APK import fallback, risk gauge, summary and severity/category
+  charts from persisted reports, and recent scans with an empty state for
+  first-time users.
 - **Scan** — APK picker (Storage Access Framework), live fingerprinting progress
   (bytes read), result showing `filename`, `size`, and full `SHA-256`.
 - **Results** — file identity card, engine run stats, the intelligence card
@@ -110,6 +148,8 @@ app/src/main/java/com/kernelcall/app/
 │   └── export/                      # ForensicTextReport + ReportExporter (Phase 4)
 ├── data/ScanRecord.kt               # Immutable scan record model
 ├── data/ScanHistoryStore.kt         # On-device history (StateFlow + JSON)
+├── core/installed/InstalledScanning.kt  # Filtering + scan-queue state machine (pure)
+├── core/dashboard/DashboardStats.kt     # Pure report aggregation for charts
 ├── engines/staticengine/            # AXML parser, zip inventory, certs, dex strings
 └── ui/
     ├── KernelCallApp.kt             # NavHost + bottom navigation

@@ -35,6 +35,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.kernelcall.app.core.export.ExportFormat
 import com.kernelcall.app.core.export.ReportExporter
+import com.kernelcall.app.core.dashboard.ReportAggregates
 import com.kernelcall.app.core.model.AnalysisReport
 import com.kernelcall.app.core.model.Finding
 import com.kernelcall.app.core.model.FindingKind
@@ -43,9 +44,13 @@ import com.kernelcall.app.core.model.Severity
 import com.kernelcall.app.data.ScanHistoryStore
 import com.kernelcall.app.data.ScanRecord
 import com.kernelcall.app.ui.Formats
+import com.kernelcall.app.ui.components.CategoryBarChart
+import com.kernelcall.app.ui.components.CategoryBarChart
 import com.kernelcall.app.ui.components.EmptyState
 import com.kernelcall.app.ui.components.PanelCard
+import com.kernelcall.app.ui.components.RiskGauge
 import com.kernelcall.app.ui.components.SectionLabel
+import androidx.compose.foundation.layout.size
 import com.kernelcall.app.ui.theme.HashStyle
 import com.kernelcall.app.ui.theme.KernelCyan
 import com.kernelcall.app.ui.theme.KernelGreen
@@ -195,6 +200,18 @@ fun ResultsScreen(
 
         Spacer(Modifier.height(16.dp))
 
+        if (report.findings.isNotEmpty()) {
+            PanelCard(modifier = Modifier.fillMaxWidth()) {
+                SectionLabel("Findings by category (all reports)")
+                Spacer(Modifier.height(10.dp))
+                CategoryBarChart(
+                    ReportAggregates.categoryCounts(report.findings),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+
         // Findings
         SectionLabel("Findings (${report.findings.size})")
         Spacer(Modifier.height(10.dp))
@@ -271,9 +288,15 @@ private fun IntelligenceCard(report: AnalysisReport) {
             return@PanelCard
         }
 
-        // Risk band header
+        // Risk band header with gauge (real score only)
         val bandColor = bandColor(intel.risk.band)
         Row(verticalAlignment = Alignment.CenterVertically) {
+            RiskGauge(
+                score = intel.risk.score,
+                bandName = intel.risk.band.name,
+                modifier = Modifier.size(110.dp),
+            )
+            Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(
                     text = "Risk-surface score",
@@ -282,8 +305,15 @@ private fun IntelligenceCard(report: AnalysisReport) {
                 )
                 Text(
                     text = "${intel.risk.score} / 100 · RISK: ${intel.risk.band.name}",
-                    style = MaterialTheme.typography.headlineSmall,
+                    style = MaterialTheme.typography.titleMedium,
                     color = bandColor,
+                )
+                Text(
+                    text = "${report.findings.size} finding(s) · " +
+                        "${intel.correlations.size} correlation(s) · " +
+                        "${report.unknowns.size} unknown(s)",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }

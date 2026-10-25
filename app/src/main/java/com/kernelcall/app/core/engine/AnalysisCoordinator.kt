@@ -79,11 +79,15 @@ class AnalysisCoordinator {
             }
         }
 
-        onProgress(100, "Analysis complete")
+        // Intelligence derivation is a real compute step — report it as its
+        // own stage rather than silently jumping to "Analysis complete".
+        onProgress(99, "Assessing risk-surface score")
 
         val correlations = com.kernelcall.app.core.intelligence.Correlator.correlate(allFindings)
         val risk = com.kernelcall.app.core.intelligence.RiskScorer.assess(allFindings, correlations, allUnknowns)
         val intelligence = com.kernelcall.app.core.model.Intelligence(correlations, risk)
+
+        onProgress(100, "Analysis complete")
 
         return AnalysisReport(
             schemaVersion = AnalysisReport.CURRENT_SCHEMA_VERSION,

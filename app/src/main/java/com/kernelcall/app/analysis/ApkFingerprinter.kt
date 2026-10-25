@@ -5,10 +5,13 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.InputStream
 import java.security.MessageDigest
 
 /**
- * Static fingerprint data read from an APK the user picked.
+ * Static fingerprint data read from an APK the user picked or an installed
+ * app's accessible APK path (Phase 5).
  *
  * This is **not** an analysis verdict. It only describes the file itself.
  */
@@ -21,7 +24,8 @@ data class ApkFileMeta(
 class ApkReadException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
 /**
- * Reads the selected APK through the Storage Access Framework and computes a
+ * Reads an APK — through the Storage Access Framework (user-picked file) or
+ * from an installed app's accessible world-readable APK path — and computes a
  * SHA-256 fingerprint by streaming the bytes (no copy, no upload, the APK is
  * never installed or executed).
  */
@@ -41,22 +45,49 @@ object ApkFingerprinter {
 
         val declaredSize = querySize(resolver, uri)
 
-        val digest = MessageDigest.getInstance("SHA-256")
-        var bytesProcessed = 0L
-        val buffer = ByteArray(512 * 1024)
-
         val stream = try {
             resolver.openInputStream(uri)
         } catch (e: Exception) {
             throw ApkReadException("Android refused access to the selected file.", e)
         } ?: throw ApkReadException("Android could not open the selected file.")
 
+        digestStream(displayName, declaredSize, stream, onProgress)
+    }
+
+    /**
+     * Installed-app variant: fingerprints the accessible base APK at an
+     * absolute file path (e.g. /data/app/.../base.apk). Runs on
+     * Dispatchers.IO; the APK is only read as bytes.
+     */
+    suspend fun fingerprint(
+        file: File,
+        onProgress: (bytesProcessed: Long, totalBytes: Long?) -> Unit,
+    ): ApkFileMeta = withContext(Dispatchers.IO) {
+        val stream = try {
+            file.inputStream()
+        } catch (e: Exception) {
+            throw ApkReadException("Android refused access to this app's APK file.", e)
+        }
+        digestStream(file.name, file.length(), stream, onProgress)
+    }
+
+    /** Shared streaming digest core for both entry points. */
+    private fun digestStream(
+        fileName: String,
+        declaredSize: Long?,
+        stream: InputStream,
+        onProgress: (bytesProcessed: Long, totalBytes: Long?) -> Unit,
+    ): ApkFileMeta {
+        val digest = MessageDigest.getInstance("SHA-256")
+        var bytesProcessed = 0L
+        val buffer = ByteArray(512 * 1024)
+
         stream.use { input ->
             while (true) {
                 val read = try {
                     input.read(buffer)
                 } catch (e: Exception) {
-                    throw ApkReadException("The selected file could not be read.", e)
+                    throw ApkReadException("The APK file could not be read.", e)
                 }
                 if (read == -1) break
                 if (read > 0) {
@@ -67,8 +98,8 @@ object ApkFingerprinter {
             }
         }
 
-        ApkFileMeta(
-            fileName = displayName,
+        return ApkFileMeta(
+            fileName = fileName,
             sizeBytes = if (declaredSize != null && declaredSize >= 0) declaredSize else bytesProcessed,
             sha256 = digest.digest().joinToString("") { "%02x".format(it) },
         )

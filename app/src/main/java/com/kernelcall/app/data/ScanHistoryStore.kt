@@ -87,34 +87,9 @@ class ScanHistoryStore private constructor(context: Context) {
         }
     }
 
-    private fun encode(records: List<ScanRecord>): JSONArray {
-        val array = JSONArray()
-        records.forEach { record ->
-            array.put(
-                JSONObject()
-                    .put("id", record.id)
-                    .put("fileName", record.fileName)
-                    .put("sizeBytes", record.sizeBytes)
-                    .put("sha256", record.sha256)
-                    .put("scannedAt", record.scannedAt)
-                    .put("cacheStored", record.cacheStored)
-            )
-        }
-        return array
-    }
+    private fun encode(records: List<ScanRecord>): JSONArray = ScanRecordCodec.encode(records)
 
-    private fun decode(array: JSONArray): List<ScanRecord> =
-        List(array.length()) { index ->
-            val item = array.getJSONObject(index)
-            ScanRecord(
-                id = item.getLong("id"),
-                fileName = item.getString("fileName"),
-                sizeBytes = item.optLong("sizeBytes", -1),
-                sha256 = item.getString("sha256"),
-                scannedAt = item.optLong("scannedAt", 0),
-                cacheStored = item.optBoolean("cacheStored", false),
-            )
-        }
+    private fun decode(array: JSONArray): List<ScanRecord> = ScanRecordCodec.decode(array)
 
     companion object {
         private const val SCHEMA_KEY = "schemaVersion"

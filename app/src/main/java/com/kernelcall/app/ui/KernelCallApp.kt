@@ -25,13 +25,18 @@ import androidx.navigation.navArgument
 import androidx.navigation.NavType
 import com.kernelcall.app.ui.screens.DashboardScreen
 import com.kernelcall.app.ui.screens.HistoryScreen
+import com.kernelcall.app.ui.screens.InstalledAppsScreen
 import com.kernelcall.app.ui.screens.ResultsScreen
+import com.kernelcall.app.ui.screens.ScanProgressScreen
 import com.kernelcall.app.ui.screens.ScanScreen
+import com.kernelcall.app.ui.installed.InstalledAppsViewModel
 
 object Routes {
     const val DASHBOARD = "dashboard"
     const val SCAN = "scan"
     const val HISTORY = "history"
+    const val INSTALLED = "installed"
+    const val PROGRESS = "progress"
     const val RESULTS = "results/{recordId}"
     fun results(id: Long) = "results/$id"
 }
@@ -45,7 +50,11 @@ private val tabs = listOf(
 )
 
 @Composable
-fun KernelCallApp(scanViewModel: ScanViewModel = viewModel()) {
+fun KernelCallApp(
+    scanViewModel: ScanViewModel = viewModel(),
+    installedViewModel: InstalledAppsViewModel = viewModel(),
+    dashboardViewModel: DashboardViewModel = viewModel(),
+) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
@@ -91,9 +100,10 @@ fun KernelCallApp(scanViewModel: ScanViewModel = viewModel()) {
         ) {
             composable(Routes.DASHBOARD) {
                 DashboardScreen(
+                    viewModel = dashboardViewModel,
                     records = scanViewModel.historyStore.records.collectAsState().value,
-                    loadReport = scanViewModel::loadReportFor,
-                    onScanSelected = { navController.navigate(Routes.SCAN) },
+                    onScanInstalled = { navController.navigate(Routes.INSTALLED) },
+                    onManualImport = { navController.navigate(Routes.SCAN) },
                     onRecordSelected = { id -> navController.navigate(Routes.results(id)) },
                 )
             }
@@ -101,6 +111,20 @@ fun KernelCallApp(scanViewModel: ScanViewModel = viewModel()) {
                 ScanScreen(
                     viewModel = scanViewModel,
                     onOpenResults = { navController.navigate(Routes.results(it)) },
+                )
+            }
+            composable(Routes.INSTALLED) {
+                InstalledAppsScreen(
+                    viewModel = installedViewModel,
+                    onScanProgress = { navController.navigate(Routes.PROGRESS) },
+                    onManualImport = { navController.navigate(Routes.SCAN) },
+                )
+            }
+            composable(Routes.PROGRESS) {
+                ScanProgressScreen(
+                    viewModel = installedViewModel,
+                    onOpenResults = { id -> navController.navigate(Routes.results(id)) },
+                    onBack = { navController.popBackStack() },
                 )
             }
             composable(Routes.HISTORY) {
