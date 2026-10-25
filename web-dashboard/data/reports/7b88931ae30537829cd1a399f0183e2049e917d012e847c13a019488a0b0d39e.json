@@ -1,0 +1,182 @@
+{
+  "schemaVersion": 3,
+  "sha256": "7b88931ae30537829cd1a399f0183e2049e917d012e847c13a019488a0b0d39e",
+  "sha1": "3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d",
+  "md5": "f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3",
+  "fileName": "CobaltDropper-Sample.apk",
+  "sizeBytes": 1845120,
+  "packageName": "com.device.systemcore.service",
+  "generatedAt": 1792920415545,
+  "intelligence": {
+    "risk": {
+      "score": 92,
+      "band": "HIGH",
+      "contributions": [
+        {
+          "refRuleId": "M-CLEARTEXT",
+          "description": "Cleartext HTTP traffic permitted (MitM vulnerability)",
+          "weight": 20
+        },
+        {
+          "refRuleId": "M-DEBUGGABLE",
+          "description": "Debuggable flag active in package manifest",
+          "weight": 25
+        },
+        {
+          "refRuleId": "M-PERM-SMS",
+          "description": "Dangerous permission requested: Intercept Incoming SMS",
+          "weight": 14
+        },
+        {
+          "refRuleId": "A-COVERT-PAYLOAD",
+          "description": "Covert executable payload stored in assets directory",
+          "weight": 30
+        }
+      ],
+      "limitations": [
+        "Static analysis only. Does not observe dynamic native execution."
+      ]
+    },
+    "correlations": [
+      {
+        "id": "corr-sms-01",
+        "ruleId": "CORR-SMS-INTERCEPT",
+        "title": "SMS Background Interceptor Signal",
+        "explanation": "Co-occurrence of boot listener + SMS interception hooks suggests OTP theft.",
+        "severity": "HIGH",
+        "scoreWeight": 20,
+        "sharedEvidence": [
+          {
+            "type": "permission",
+            "label": "persistence",
+            "value": "RECEIVE_BOOT_COMPLETED"
+          }
+        ]
+      }
+    ],
+    "mitreAttAndCk": [
+      {
+        "id": "T1624",
+        "tactic": "Persistence",
+        "technique": "Broadcast Receivers"
+      },
+      {
+        "id": "T1412",
+        "tactic": "Collection",
+        "technique": "Capture SMS Messages"
+      }
+    ],
+    "iocs": {
+      "hashes": {
+        "sha256": "7b88931ae30537829cd1a399f0183e2049e917d012e847c13a019488a0b0d39e",
+        "sha1": "3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d",
+        "md5": "f8e7d6c5b4a3f2e1d0c9b8a7f6e5d4c3"
+      },
+      "domains": [
+        "api.telegram.org",
+        "gate-transfer.online",
+        "telemetry.securesms.org"
+      ],
+      "urls": [
+        "https://api.telegram.org/bot12345/sendMessage",
+        "http://185.220.101.45/gate.php"
+      ],
+      "ips": [
+        "185.220.101.45",
+        "194.87.139.11"
+      ]
+    }
+  },
+  "softwareComposition": {
+    "totalLibraries": 3,
+    "libraries": [
+      {
+        "name": "OkHttp",
+        "category": "Networking",
+        "cveHint": "Ensure TLS pinning is enforced"
+      },
+      {
+        "name": "Retrofit",
+        "category": "Networking",
+        "cveHint": "Verify endpoint certificates"
+      }
+    ]
+  },
+  "evasionAnalysis": {
+    "detectedCount": 2,
+    "indicators": [
+      {
+        "id": "EV-01",
+        "type": "Anti-Root",
+        "label": "Superuser / Root Detection",
+        "severity": "MEDIUM",
+        "desc": "Checks for standard root binaries."
+      }
+    ]
+  },
+  "certificates": {
+    "v1Scheme": true,
+    "v2v3Scheme": true,
+    "certEntries": [
+      "META-INF/CERT.RSA"
+    ]
+  },
+  "findings": [
+    {
+      "id": "f-1",
+      "engineId": "static.v2",
+      "title": "Cleartext HTTP Traffic Permitted",
+      "summary": "android:usesCleartextTraffic is set to true.",
+      "kind": "HEURISTIC_INDICATOR",
+      "severity": "HIGH",
+      "category": "manifest",
+      "ruleId": "M-CLEARTEXT",
+      "confidence": "HIGH",
+      "evidence": [
+        {
+          "type": "manifest_attr",
+          "label": "usesCleartextTraffic",
+          "value": "true",
+          "location": "application"
+        }
+      ]
+    },
+    {
+      "id": "f-2",
+      "engineId": "static.v2",
+      "title": "Sensitive SMS Interception Permissions",
+      "summary": "Requests android.permission.RECEIVE_SMS.",
+      "kind": "HEURISTIC_INDICATOR",
+      "severity": "HIGH",
+      "category": "manifest",
+      "ruleId": "M-PERM-SMS",
+      "confidence": "HIGH",
+      "evidence": [
+        {
+          "type": "permission",
+          "label": "uses-permission",
+          "value": "android.permission.RECEIVE_SMS",
+          "location": "manifest"
+        }
+      ]
+    }
+  ],
+  "zipInventory": {
+    "totalFiles": 142,
+    "dexCount": 2,
+    "abis": [
+      "arm64-v8a",
+      "armeabi-v7a"
+    ],
+    "entries": [
+      {
+        "fileName": "AndroidManifest.xml",
+        "uncompSize": 3410
+      },
+      {
+        "fileName": "classes.dex",
+        "uncompSize": 2104000
+      }
+    ]
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "kernelcall-web-dashboard",
+  "version": "1.0.0",
+  "description": "Kernel Call - Native Android Security Intelligence & Static APK Analysis Web Console",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "android",
+    "security",
+    "apk-analysis",
+    "static-analysis",
+    "cybersecurity",
+    "dashboard"
+  ],
+  "author": "Kernel Call Team",
+  "license": "Apache-2.0"
+}
