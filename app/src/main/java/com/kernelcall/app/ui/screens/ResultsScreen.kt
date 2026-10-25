@@ -1,5 +1,8 @@
 package com.kernelcall.app.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,13 +20,21 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.kernelcall.app.core.export.ExportFormat
+import com.kernelcall.app.core.export.ReportExporter
 import com.kernelcall.app.core.model.AnalysisReport
 import com.kernelcall.app.core.model.Finding
 import com.kernelcall.app.core.model.FindingKind
@@ -41,6 +52,10 @@ import com.kernelcall.app.ui.theme.KernelGreen
 import com.kernelcall.app.ui.theme.KernelRed
 import com.kernelcall.app.ui.theme.KernelTextSecondary
 import com.kernelcall.app.ui.theme.KernelAmber
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun ResultsScreen(
@@ -51,6 +66,27 @@ fun ResultsScreen(
 ) {
     val records by store.records.collectAsState()
     val record = records.firstOrNull { it.id == recordId }
+
+    // Export hooks stay unconditional (before early returns) so Compose slot
+    // counts are stable across recompositions. Writing happens on IO.
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var exportStatus by remember { mutableStateOf<String?>(null) }
+
+    val jsonSaver = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument(ExportFormat.JSON.mimeType),
+    ) { uri ->
+        scope.launchExport(uri, recordId, store, loadReport, context, ExportFormat.JSON) {
+            exportStatus = it
+        }
+    }
+    val textSaver = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument(ExportFormat.TEXT.mimeType),
+    ) { uri ->
+        scope.launchExport(uri, recordId, store, loadReport, context, ExportFormat.TEXT) {
+            exportStatus = it
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -122,6 +158,35 @@ fun ResultsScreen(
                 )
             }
         }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Export & share — explicit user action only (SAF save / share sheet)
+        ExportCard(
+            report = report,
+            status = exportStatus,
+            onSaveJson = {
+                jsonSaver.launch(ReportExporter.suggestedFileName(report, ExportFormat.JSON))
+            },
+            onSaveText = {
+                textSaver.launch(ReportExporter.suggestedFileName(report, ExportFormat.TEXT))
+            },
+            onShare = {
+                scope.launch {
+                    try {
+                        val chooser = withContext(Dispatchers.IO) {
+                            ReportExporter.shareIntent(
+                                report,
+                                "Share forensic report",
+                            )
+                        }
+                        context.startActivity(chooser)
+                    } catch (_: Exception) {
+                        exportStatus = "Sharing is unavailable on this device."
+                    }
+                }
+            },
+        )
 
         Spacer(Modifier.height(16.dp))
 
@@ -447,4 +512,84 @@ private fun RecordRows(record: ScanRecord) {
         style = HashStyle,
         color = MaterialTheme.colorScheme.primary,
     )
+}
+
+@Composable
+private fun ExportCard(
+    report: AnalysisReport,
+    status: String?,
+    onSaveJson: () -> Unit,
+    onSaveText: () -> Unit,
+    onShare: () -> Unit,
+) {
+    PanelCard(modifier = Modifier.fillMaxWidth()) {
+        SectionLabel("Export & share")
+        Spacer(Modifier.height(10.dp))
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            OutlinedButton(onClick = onSaveJson) { Text("Save JSON") }
+            OutlinedButton(onClick = onSaveText) { Text("Save text") }
+            OutlinedButton(onClick = onShare) { Text("Share") }
+        }
+        Spacer(Modifier.height(10.dp))
+        Text(
+            text = "JSON keeps the full schema-versioned report exactly as " +
+                "stored on this device; text is a human-readable forensic " +
+                "summary. Both contain indicator-based static evidence — " +
+                "not a verdict that the APK is malicious or safe.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (report.intelligence == null) {
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "This is an older report without intelligence data — the " +
+                    "export states that openly instead of inventing a score.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = KernelAmber,
+            )
+        }
+        status?.let {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = it,
+                style = MaterialTheme.typography.labelLarge,
+                color = if (it.startsWith("Export failed", ignoreCase = true)) {
+                    KernelRed
+                } else {
+                    KernelCyan
+                },
+            )
+        }
+    }
+}
+
+/** Runs the write path (report load + document write) off the main thread. */
+private fun CoroutineScope.launchExport(
+    uri: android.net.Uri?,
+    recordId: Long,
+    store: ScanHistoryStore,
+    loadReport: (sha256: String) -> AnalysisReport?,
+    context: android.content.Context,
+    format: ExportFormat,
+    onStatus: (String) -> Unit,
+) {
+    if (uri == null) return
+    onStatus("Exporting report")
+    launch {
+        val ok = withContext(Dispatchers.IO) {
+            val record = store.records.value.firstOrNull { it.id == recordId }
+            val report = record?.let { loadReport(it.sha256) }
+            report != null && ReportExporter.write(context, uri, report, format)
+        }
+        onStatus(
+            if (ok) {
+                "Report saved. Remember: it is an indicator-based analysis, " +
+                    "not proof the APK is malicious or safe."
+            } else {
+                "Export failed — the document could not be written."
+            },
+        )
+    }
 }

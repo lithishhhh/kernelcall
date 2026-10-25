@@ -36,7 +36,7 @@ object Formats {
         val hour = cal.get(java.util.Calendar.HOUR_OF_DAY)
         val minute = cal.get(java.util.Calendar.MINUTE)
         return String.format(
-            Locale.US, "%d %s %d, %02d:%02d", day, month, year, hour, minute,
+            Locale.US, "%s %s %d, %02d:%02d", day, month, year, hour, minute,
         )
     }
 }
