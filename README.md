@@ -2,7 +2,7 @@
 
 A native Android application for **static APK analysis, forensic report
 export, and security intelligence**. Built with Kotlin, Jetpack Compose, and
-Material 3 — no backend, no cloud services, no sign-in, no INTERNET permission.
+Material 3 — no cloud services, no sign-in, no INTERNET permission.
 
 > End-to-end, the app picks an APK, reads its bytes, and computes a SHA-256
 > fingerprint on the device (Phase 1); parses the binary manifest, archive,
